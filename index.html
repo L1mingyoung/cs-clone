@@ -1,0 +1,415 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CS 1.6 Clone</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      body {
+        overflow: hidden;
+        background: #000;
+        font-family: "Arial", sans-serif;
+      }
+      #game-container {
+        width: 100vw;
+        height: 100vh;
+        position: relative;
+      }
+      #ui {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 100;
+      }
+      #crosshair {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 20px;
+        height: 20px;
+      }
+      #crosshair::before,
+      #crosshair::after {
+        content: "";
+        position: absolute;
+        background: #0f0;
+      }
+      #crosshair::before {
+        width: 2px;
+        height: 100%;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+      #crosshair::after {
+        height: 2px;
+        width: 100%;
+        top: 50%;
+        transform: translateY(-50%);
+      }
+      #hud {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        color: #fff;
+        font-size: 18px;
+        text-shadow: 2px 2px 2px #000;
+      }
+      #health {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      #health-icon {
+        width: 30px;
+        height: 30px;
+        background: #f00;
+        margin-right: 10px;
+        clip-path: polygon(
+          50% 0%,
+          100% 35%,
+          80% 100%,
+          50% 80%,
+          20% 100%,
+          0% 35%
+        );
+      }
+      #armor {
+        display: flex;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+      #armor-icon {
+        width: 30px;
+        height: 30px;
+        background: #00f;
+        margin-right: 10px;
+        clip-path: polygon(
+          50% 0%,
+          100% 25%,
+          100% 75%,
+          50% 100%,
+          0% 75%,
+          0% 25%
+        );
+      }
+      #ammo {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        color: #fff;
+        font-size: 24px;
+        text-shadow: 2px 2px 2px #000;
+      }
+      #weapon-name {
+        font-size: 14px;
+        margin-bottom: 5px;
+        color: #ff0;
+      }
+      #score {
+        position: absolute;
+        top: 20px;
+        right: 20px;
+        color: #fff;
+        font-size: 18px;
+        text-shadow: 2px 2px 2px #000;
+      }
+      #instructions {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #fff;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.8);
+        padding: 20px;
+        border-radius: 10px;
+        pointer-events: auto;
+      }
+      #instructions h1 {
+        color: #f00;
+        margin-bottom: 20px;
+      }
+      #instructions button {
+        padding: 10px 30px;
+        font-size: 18px;
+        background: #f00;
+        color: #fff;
+        border: none;
+        cursor: pointer;
+        margin-top: 20px;
+      }
+      #instructions button:hover {
+        background: #ff3333;
+      }
+      .hidden {
+        display: none !important;
+      }
+      #damage-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: radial-gradient(
+          circle,
+          transparent 0%,
+          rgba(255, 0, 0, 0.3) 100%
+        );
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.1s;
+      }
+      #kill-feed {
+        position: absolute;
+        top: 50px;
+        right: 20px;
+        color: #fff;
+        font-size: 14px;
+        text-align: right;
+      }
+      .kill-entry {
+        margin-bottom: 5px;
+        animation: fadeOut 3s forwards;
+      }
+      @keyframes fadeOut {
+        0% {
+          opacity: 1;
+        }
+        70% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+        }
+      }
+      #kill-icon {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 80px;
+        color: #ff0000;
+        text-shadow:
+          0 0 20px #ff0000,
+          0 0 40px #ff0000;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 200;
+      }
+      #kill-icon.show {
+        animation: killIconAnim 0.8s ease-out forwards;
+      }
+      @keyframes killIconAnim {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(0.5);
+        }
+        20% {
+          opacity: 1;
+          transform: translate(-50%, -50%) scale(1.2);
+        }
+        40% {
+          transform: translate(-50%, -50%) scale(1);
+        }
+        80% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) scale(1);
+        }
+      }
+      #headshot-icon {
+        position: absolute;
+        top: 45%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 24px;
+        color: #ff6600;
+        text-shadow: 0 0 10px #ff6600;
+        opacity: 0;
+        pointer-events: none;
+        z-index: 201;
+        font-weight: bold;
+      }
+      #headshot-icon.show {
+        animation: headshotAnim 0.8s ease-out forwards;
+      }
+      @keyframes headshotAnim {
+        0% {
+          opacity: 0;
+          transform: translate(-50%, -50%) translateY(20px);
+        }
+        20% {
+          opacity: 1;
+          transform: translate(-50%, -50%) translateY(0);
+        }
+        80% {
+          opacity: 1;
+        }
+        100% {
+          opacity: 0;
+          transform: translate(-50%, -50%) translateY(-20px);
+        }
+      }
+      #pause-menu {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        color: #fff;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.9);
+        padding: 40px;
+        border-radius: 10px;
+        pointer-events: auto;
+        z-index: 300;
+      }
+      #pause-menu h2 {
+        color: #ff0;
+        margin-bottom: 30px;
+        font-size: 32px;
+      }
+      #pause-menu button {
+        display: block;
+        width: 200px;
+        padding: 15px;
+        font-size: 18px;
+        background: #333;
+        color: #fff;
+        border: 2px solid #fff;
+        cursor: pointer;
+        margin: 10px auto;
+      }
+      #pause-menu button:hover {
+        background: #555;
+      }
+      #scope-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 150;
+        background: radial-gradient(
+          circle at center,
+          transparent 300px,
+          rgba(0, 0, 0, 0.95) 300px
+        );
+      }
+      #scope-overlay::before {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 600px;
+        height: 600px;
+        border: 3px solid rgba(50, 50, 50, 0.8);
+        border-radius: 50%;
+        box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+      }
+      #scope-overlay::after {
+        content: "";
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 20px;
+        height: 20px;
+      }
+      #scope-crosshair-h,
+      #scope-crosshair-v {
+        position: absolute;
+        background: #111;
+      }
+      #scope-crosshair-h {
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 400px;
+        height: 2px;
+      }
+      #scope-crosshair-v {
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 2px;
+        height: 400px;
+      }
+      #scope-dot {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 4px;
+        height: 4px;
+        background: #111;
+        border-radius: 50%;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="game-container">
+      <div id="ui">
+        <div id="crosshair"></div>
+        <div id="damage-overlay"></div>
+        <div id="scope-overlay" class="hidden">
+          <div id="scope-crosshair-h"></div>
+          <div id="scope-crosshair-v"></div>
+          <div id="scope-dot"></div>
+        </div>
+        <div id="hud">
+          <div id="health">
+            <div id="health-icon"></div>
+            <span id="health-value">100</span>
+          </div>
+          <div id="armor">
+            <div id="armor-icon"></div>
+            <span id="armor-value">0</span>
+          </div>
+        </div>
+        <div id="ammo">
+          <div id="weapon-name">AK-47</div>
+          <span id="ammo-current">30</span> / <span id="ammo-reserve">90</span>
+        </div>
+        <div id="score">
+          <div>Kills: <span id="kills">0</span></div>
+          <div>Deaths: <span id="deaths">0</span></div>
+        </div>
+        <div id="kill-feed"></div>
+        <div id="kill-icon">💀</div>
+        <div id="headshot-icon">爆头!</div>
+        <div id="instructions">
+          <h1>CS 1.6 Clone</h1>
+          <p>WASD - 移动</p>
+          <p>鼠标 - 瞄准</p>
+          <p>左键 - 射击 (按住连发)</p>
+          <p>右键 - AWP开镜</p>
+          <p>R - 换弹</p>
+          <p>1/2/3 - 切换武器</p>
+          <p>Shift - 奔跑</p>
+          <p>空格 - 跳跃</p>
+          <p>P - 暂停</p>
+          <button id="start-btn">开始游戏</button>
+        </div>
+        <div id="pause-menu" class="hidden">
+          <h2>游戏暂停</h2>
+          <button id="resume-btn">继续游戏</button>
+          <button id="restart-btn">重新开始</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
