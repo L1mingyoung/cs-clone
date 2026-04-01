@@ -1,2 +1,2 @@
 # cs-clone
-threejs
+Use ThreeJS to implement a web game that mimics CS
